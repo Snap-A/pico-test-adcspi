@@ -26,9 +26,9 @@
  **       the transaction.
  **/
 
-#define ADC_CS_GPIO   17
-#define ADC_CLK_GPIO  18
-#define ADC_DATA_GPIO 19
+#define ADC_CS_GPIO   9
+#define ADC_CLK_GPIO  10
+#define ADC_DATA_GPIO 11
 
 /* Set clock rate to 100 kHz */
 #define SPI_HALF_CYCLE 5
