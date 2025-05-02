@@ -19,10 +19,16 @@
  ** Define the GPIO pin numbers used for accessing the Texas Instrument ADC via SPI
  **/
 
+/* Force to high/disable */
+/* DAC CS for selecting this chip */
+#define DAC_CS_GPIO   7
+
+/* ADC CS for selecting this chip */
 #define ADC_CS_GPIO   9
-#define ADC_CLK_GPIO  10
-#define ADC_MISO_GPIO 8
-#define ADC_MOSI_GPIO 11
+
+#define SPI1_CLK_GPIO  10
+#define SPI1_MISO_GPIO 8
+#define SPI1_MOSI_GPIO 11
 
 /* Set clock rate to 100 kHz */
 #define SPI_HALF_CYCLE 5
@@ -32,24 +38,29 @@
  **/
 int pico_adc_init(void)
 {
-   /* CS output, set to '1' */
+   /* DAC CS output, set to '1' */
+   gpio_init(DAC_CS_GPIO);
+   gpio_set_dir(DAC_CS_GPIO, GPIO_OUT);
+   gpio_put(DAC_CS_GPIO, 1);
+
+   /* ADC CS output, set to '1' */
    gpio_init(ADC_CS_GPIO);
    gpio_set_dir(ADC_CS_GPIO, GPIO_OUT);
    gpio_put(ADC_CS_GPIO, 1);
 
    /* CLK output, set to '1' */
-   gpio_init(ADC_CLK_GPIO);
-   gpio_set_dir(ADC_CLK_GPIO, GPIO_OUT);
-   gpio_put(ADC_CLK_GPIO, 1);
+   gpio_init(SPI1_CLK_GPIO);
+   gpio_set_dir(SPI1_CLK_GPIO, GPIO_OUT);
+   gpio_put(SPI1_CLK_GPIO, 1);
 
    /* MOSI output, set to '0' */
-   gpio_init(ADC_MOSI_GPIO);
-   gpio_set_dir(ADC_MOSI_GPIO, GPIO_OUT);
-   gpio_put(ADC_MOSI_GPIO, 0);
+   gpio_init(SPI1_MOSI_GPIO);
+   gpio_set_dir(SPI1_MOSI_GPIO, GPIO_OUT);
+   gpio_put(SPI1_MOSI_GPIO, 0);
 
    /* MISO input */
-   gpio_init(ADC_MISO_GPIO);
-   gpio_set_dir(ADC_MISO_GPIO, GPIO_IN);
+   gpio_init(SPI1_MISO_GPIO);
+   gpio_set_dir(SPI1_MISO_GPIO, GPIO_IN);
 
    return PICO_OK;
 }
@@ -63,23 +74,23 @@ int pico_adc_write(int chn)
    while (cnt > 0)
    {
       /* Start with falling edge */
-      gpio_put(ADC_CLK_GPIO, 0);
+      gpio_put(SPI1_CLK_GPIO, 0);
 
       /* Set MOSI line state */
       if (cnt == 12)
       {
          /* Write bit channel (1) */
-        gpio_put(ADC_MOSI_GPIO, (chn)?1:0);
+        gpio_put(SPI1_MOSI_GPIO, (chn)?1:0);
       }
       else
       {
          /* Always '0' */
-         gpio_put(ADC_MOSI_GPIO, 0);
+         gpio_put(SPI1_MOSI_GPIO, 0);
       }
       sleep_us(SPI_HALF_CYCLE);
 
       /* Clock data to chip with rising edge */
-      gpio_put(ADC_CLK_GPIO, 1);
+      gpio_put(SPI1_CLK_GPIO, 1);
       sleep_us(SPI_HALF_CYCLE);
 
       /* Loop counter */
@@ -106,12 +117,12 @@ int pico_adc_read(uint8_t* out, size_t out_len)
    while (cnt > 0)
    {
       /* Tell chip to set MISO to next bit value */
-      gpio_put(ADC_CLK_GPIO, 0);
+      gpio_put(SPI1_CLK_GPIO, 0);
       sleep_us(SPI_HALF_CYCLE);
 
       /* Read data bit from ADC and shift into output buffer */
-      gpio_put(ADC_CLK_GPIO, 1);
-      val = (gpio_get(ADC_MISO_GPIO)?1:0);
+      gpio_put(SPI1_CLK_GPIO, 1);
+      val = (gpio_get(SPI1_MISO_GPIO)?1:0);
       for (int i=0; i < out_len-1; ++i)
       {
          out[i] = (0x7F & out[i])<<1;
@@ -136,7 +147,7 @@ int pico_adc_read(uint8_t* out, size_t out_len)
 int pico_adc_start(void)
 {
    /* MOSI output, set to '1' */
-   gpio_put(ADC_MOSI_GPIO, 1);
+   gpio_put(SPI1_MOSI_GPIO, 1);
 
    /* CS output, set to '0' */
    gpio_put(ADC_CS_GPIO, 0);
@@ -149,13 +160,13 @@ int pico_adc_start(void)
 int pico_adc_end(void)
 {
   /* CLK output, set to '1' */
-  gpio_put(ADC_CLK_GPIO, 1);
+  gpio_put(SPI1_CLK_GPIO, 1);
 
   /* CS output, set to '1' */
   gpio_put(ADC_CS_GPIO, 1);
 
   /* MOSI output, set to '1' */
-  gpio_put(ADC_MOSI_GPIO, 1);
+  gpio_put(SPI1_MOSI_GPIO, 1);
 
   return PICO_OK;
 }
@@ -175,10 +186,11 @@ int main()
    float VperLSB = 3.3 / 256.0;
 
    bi_decl(bi_program_description("This is the ADCT082S201 binary."));
+   bi_decl(bi_1pin_with_name(DAC_CS_GPIO, "DAC SPI CS"));
    bi_decl(bi_1pin_with_name(ADC_CS_GPIO, "ADC SPI CS"));
-   bi_decl(bi_1pin_with_name(ADC_CLK_GPIO, "SPI Clock"));
-   bi_decl(bi_1pin_with_name(ADC_MISO_GPIO, "SPI MISO"));
-   bi_decl(bi_1pin_with_name(ADC_MOSI_GPIO, "SPI MOSI"));
+   bi_decl(bi_1pin_with_name(SPI1_CLK_GPIO, "SPI Clock"));
+   bi_decl(bi_1pin_with_name(SPI1_MISO_GPIO, "SPI MISO"));
+   bi_decl(bi_1pin_with_name(SPI1_MOSI_GPIO, "SPI MOSI"));
 
    stdio_init_all();
 
