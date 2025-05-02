@@ -121,7 +121,6 @@ int pico_adc_read(uint8_t* out, size_t out_len)
       sleep_us(SPI_HALF_CYCLE);
 
       /* Read data bit from ADC and shift into output buffer */
-      gpio_put(SPI1_CLK_GPIO, 1);
       val = (gpio_get(SPI1_MISO_GPIO)?1:0);
       for (int i=0; i < out_len-1; ++i)
       {
@@ -135,6 +134,7 @@ int pico_adc_read(uint8_t* out, size_t out_len)
       --cnt;
 
       /* Wait for cycle */
+      gpio_put(SPI1_CLK_GPIO, 1);
       sleep_us(SPI_HALF_CYCLE);
    }
 
@@ -151,6 +151,8 @@ int pico_adc_start(void)
 
    /* CS output, set to '0' */
    gpio_put(ADC_CS_GPIO, 0);
+   sleep_us(SPI_HALF_CYCLE);
+
    return PICO_OK;
 }
 
@@ -159,16 +161,17 @@ int pico_adc_start(void)
  **/
 int pico_adc_end(void)
 {
-  /* CLK output, set to '1' */
-  gpio_put(SPI1_CLK_GPIO, 1);
+   /* CS output, set to '1' */
+   gpio_put(ADC_CS_GPIO, 1);
+   sleep_us(SPI_HALF_CYCLE);
 
-  /* CS output, set to '1' */
-  gpio_put(ADC_CS_GPIO, 1);
+   /* CLK output, set to '1' */
+   gpio_put(SPI1_CLK_GPIO, 1);
 
-  /* MOSI output, set to '1' */
-  gpio_put(SPI1_MOSI_GPIO, 1);
+   /* MOSI output, set to '0' */
+   gpio_put(SPI1_MOSI_GPIO, 0);
 
-  return PICO_OK;
+   return PICO_OK;
 }
 
 /**
@@ -177,6 +180,7 @@ int pico_adc_end(void)
 int main()
 {
    int      rc;
+   unsigned int cycle = 0;
    uint8_t  adc_data[3];
    uint16_t chn0_val;
    float    chn0_volt;
@@ -233,8 +237,10 @@ int main()
       }
 
       /* Print and sleep */
-      printf("Data[0]: %02x -> %g V\n", chn0_val, chn0_volt);
-      printf("Data[1]: %02x -> %g V\n", chn1_val, chn1_volt);
+      printf("%03d - Data[0]: %02x -> %g V\n", cycle, chn0_val, chn0_volt);
+      printf("%03d - Data[1]: %02x -> %g V\n", cycle, chn1_val, chn1_volt);
       sleep_ms(1000);
+
+      ++cycle;
    }
 }
